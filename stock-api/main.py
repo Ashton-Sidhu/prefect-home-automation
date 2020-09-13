@@ -1,13 +1,12 @@
-import time
+import configparser
 import numpy as np
 import pandas as pd
+import time
 
 from collections import ChainMap
 from ctypes import *
 from datetime import date
 from typing import List, Dict
-
-from .conf import EMAIL_TO
 
 from prefect import flatten, task, Flow
 from prefect.tasks.notifications.email_task import EmailTask
@@ -22,6 +21,15 @@ def color_gains_loss(val):
     color = 'red' if val < 0 else 'green'
 
     return 'color: %s' % color
+
+
+@task
+def load_config() -> Dict:
+
+    config = configparser.ConfigParser()
+    config.read("conf.cfg")
+
+    return config
 
 @task
 def load_stocks() -> pd.DataFrame:
@@ -131,9 +139,12 @@ def create_message(stocks: pd.DataFrame) -> str:
 
 schedule = Schedule(clocks=[CronClock("0 21 * * 5")])
 
-email_task = EmailTask(subject="Weekly Holdings Update", email_to=EMAIL_TO)
+email_task = EmailTask(subject="Weekly Holdings Update")
 
 with Flow("Stock-API", schedule=schedule) as flow:
+
+    # Load config
+    config = load_config()
 
     # Load the stocks + the initial value
     # CSV SCHEMA: stock,initial_value
@@ -159,6 +170,6 @@ with Flow("Stock-API", schedule=schedule) as flow:
     message = create_message(stocks)
 
     # Send email
-    email_task(msg=message)
+    email_task(msg=message, email_to=config["general"]["email_list"])
 
 flow.register(project_name="Portolio Updater")
