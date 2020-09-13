@@ -127,6 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
 .vscode/
+
+stock-api/*.h
 stock-api/stocks.csv
-conf.py
+stock-api/conf.py
