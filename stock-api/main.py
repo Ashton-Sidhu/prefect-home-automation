@@ -7,18 +7,13 @@ from ctypes import *
 from datetime import date
 from typing import List, Dict
 
+from .conf import EMAIL_TO
+
 from prefect import flatten, task, Flow
 from prefect.tasks.notifications.email_task import EmailTask
 from prefect.schedules import Schedule
 from prefect.schedules.clocks import CronClock
 
-
-EMAIL_TO = ";".join(
-    [
-        "ashton.sidhu1994@gmail.com",
-        "sneha.shekar@hotmail.com"
-    ]
-)
 
 def color_gains_loss(val):
     """
