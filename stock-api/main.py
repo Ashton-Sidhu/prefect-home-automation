@@ -27,7 +27,7 @@ def color_gains_loss(val):
 def load_config() -> Dict:
 
     config = configparser.ConfigParser()
-    config.read("conf.cfg")
+    config.read("./conf.cfg")
 
     return config
 
