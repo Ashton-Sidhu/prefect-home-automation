@@ -24,9 +24,10 @@ def commit_and_push(path: str):
     repo.git.add(all=True)
     repo.index.commit("Automatic commit done by Sidhu automation.")
 
-
-    repo.remote("origin").push("master")
-
+    if "blog" in path:
+        repo.remote("origin").push("master")
+    else:
+        repo.remote("origin").push("develop")
 
 @task
 def get_projects(config):
