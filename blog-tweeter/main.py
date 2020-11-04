@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import numpy as np
 import tweepy
 
 from prefect import flatten, task, Flow
@@ -7,7 +8,17 @@ from prefect.tasks.notifications.email_task import EmailTask
 from prefect.schedules import Schedule
 from prefect.schedules.clocks import CronClock
 
-TWEET = """Check out my latest blog {title}!
+TWEET_ATS = """Check out my latest blog: "{title}"!
+
+Medium: {medium_link}
+My blog: {blog_link}
+
+{ats}
+
+{hashtags}
+"""
+
+TWEET_NO_ATS = """Check out my latest blog: "{title}"!
 
 Medium: {medium_link}
 My blog: {blog_link}
@@ -19,12 +30,12 @@ def get_blob_info():
     
     df = pd.read_csv("/mnt/shared/blogs.csv")
 
-    df = df.iloc[-2,:]
+    df = df.iloc[-1,:]
 
-    return df["Title"], df["MediumLink"], df["BlogLink"], df["Hashtags"]
+    return df["Title"], df["MediumLink"], df["BlogLink"], df["Hashtags"], df["Ats"]
 
 @task
-def send_tweet(title: str, medium_link: str, blog_link: str, hashtags: str):
+def send_tweet(title: str, medium_link: str, blog_link: str, hashtags: str, ats: str):
 
     CONSUMER_KEY = os.environ.get('CONSUMER_KEY', None)
     CONSUMER_SECRET = os.environ.get('CONSUMER_SECRET', None)
@@ -36,22 +47,33 @@ def send_tweet(title: str, medium_link: str, blog_link: str, hashtags: str):
 
     api = tweepy.API(auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True)
 
-    api.update_status(
-        TWEET.format(
+    if not np.isnan(ats):
+        tweet = TWEET_ATS.format(
+            title=title,
+            medium_link=medium_link,
+            blog_link=blog_link,
+            ats=ats.strip('"'),
+            hashtags=hashtags
+        )
+    else:
+        tweet = TWEET_NO_ATS.format(
             title=title,
             medium_link=medium_link,
             blog_link=blog_link,
             hashtags=hashtags
         )
+
+    api.update_status(
+        tweet
     )
         
-# Monday at 8pm
-schedule = Schedule(clocks=[CronClock("0 0 * * 2")])
+# Tuesday at 8pm
+schedule = Schedule(clocks=[CronClock("0 0 * * 3")])
 
 with Flow("Send Tweet", schedule=schedule) as flow:
 
-    title, medium_link, blog_link, hashtags = get_blob_info()
+    title, medium_link, blog_link, hashtags, ats = get_blob_info()
 
-    send_tweet(title, medium_link, blog_link, hashtags)
+    send_tweet(title, medium_link, blog_link, hashtags, ats)
 
 flow.register(project_name="Blog-Tweeter")
