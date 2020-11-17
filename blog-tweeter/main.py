@@ -47,7 +47,7 @@ def send_tweet(title: str, medium_link: str, blog_link: str, hashtags: str, ats:
 
     api = tweepy.API(auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True)
 
-    if not np.isnan(ats):
+    if ats is not np.nan:
         tweet = TWEET_ATS.format(
             title=title,
             medium_link=medium_link,
