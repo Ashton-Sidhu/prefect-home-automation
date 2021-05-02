@@ -3,7 +3,7 @@ import os
 import prefect
 from datetime import datetime, timedelta
 
-from elasticsearch_dsl import Document, Text, connections
+from elasticsearch_dsl import Document, Text, connections, Index
 from prefect import task, Flow, Parameter, case
 
 
@@ -45,6 +45,9 @@ def get_cursor():
 
     return curs
 
+@task
+def create_global_connection():
+    connections.create_connection(hosts=["dev.lan:9200"])
 
 @task
 def get_tweets(curs):
@@ -53,21 +56,10 @@ def get_tweets(curs):
 
 
 @task
-def tweets_to_process(tweets, start_date, end_date):
+def delete_index(index):
+    i = Index(index)
 
-    start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-    end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
-
-    return [
-        tweet
-        for tweet in tweets
-        if tweet.created_at.date() >= start_date and tweet.created_at.date() <= end_date
-    ]
-
-
-@task
-def any_tweets(tweets):
-    return len(tweets) > 0
+    i.delete()
 
 
 @task
@@ -85,8 +77,6 @@ def upload_tweets_elastic(tweets):
         for tweet in tweets
     ]
 
-    connections.create_connection(hosts=["dev.lan:9200"])
-
     Tweet.init()
 
     logger.info("Index created!")
@@ -100,21 +90,23 @@ def upload_tweets_elastic(tweets):
 
 with Flow("load_tweets") as flow:
 
-    start_date = Parameter(
-        "start_date",
-        default=(datetime.today() - timedelta(days=1)).date().strftime("%Y-%m-%d"),
-    )
-    end_date = Parameter(
-        "end_date",
-        default=(datetime.today() - timedelta(days=1)).date().strftime("%Y-%m-%d"),
+    index = Parameter(
+        "index",
+        default="tweet-index"
     )
 
     curs = get_cursor()
 
     tweets = get_tweets(curs)
-    tweets = tweets_to_process(tweets, start_date, end_date)
 
-    with case(any_tweets(tweets), True):
-        upload_tweets_elastic(tweets)
+    create_conn_task = create_global_connection()
+
+    del_task = delete_index(index)
+
+    upload_task = upload_tweets_elastic(tweets)
+
+    flow.add_edge(create_conn_task, del_task)
+    flow.add_edge(del_task, upload_task)
+
 
 flow.register(project_name="twitter-favs")
