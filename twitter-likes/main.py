@@ -58,7 +58,8 @@ def get_tweets(curs):
 def delete_index(index):
     i = Index(index)
 
-    i.delete()
+    if i.exists():
+        i.delete()
 
 
 @task
