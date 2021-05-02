@@ -1,10 +1,9 @@
 import tweepy
 import os
 import prefect
-from datetime import datetime, timedelta
 
 from elasticsearch_dsl import Document, Text, connections, Index
-from prefect import task, Flow, Parameter, case
+from prefect import task, Flow, Parameter
 
 
 class Tweet(Document):
